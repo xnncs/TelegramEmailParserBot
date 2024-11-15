@@ -2,9 +2,11 @@ namespace EmailParserBot.Handlers.Email.Implementation;
 
 using System.Text;
 using Abstract;
+using Contracts;
 using MailKit;
 using MailKit.Net.Imap;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MimeKit;
 using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
@@ -13,11 +15,14 @@ public class EmailService : IEmailService
 {
     private readonly ILogger<EmailService> _logger;
     private readonly ITelegramBotClient _botClient;
+    
+    private readonly AdminsListContract _adminsContract;
 
-    public EmailService(ILogger<EmailService> logger, ITelegramBotClient botClient)
+    public EmailService(ILogger<EmailService> logger, ITelegramBotClient botClient, IOptions<AdminsListContract> admins)
     {
         _logger = logger;
         _botClient = botClient;
+        _adminsContract = admins.Value;
     }
 
     public async Task OnEmailAsync(IMessageSummary messageSummary, ImapClient imapClient)
@@ -38,11 +43,9 @@ public class EmailService : IEmailService
 
     private async Task OnMessageLogicAsync(MimeMessage message)
     {
-        List<long> admins = [1367636999];
-
         string outputMessageText = GetOutputTextFromMessage(message);
 
-        foreach (long admin in admins)
+        foreach (long admin in _adminsContract.Admins)
         {
             await _botClient.SendTextMessageAsync(admin, outputMessageText);
         }

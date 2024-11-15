@@ -33,6 +33,7 @@ IHost app = Host.CreateDefaultBuilder(args)
                   {
                       services.Configure<AuthenticateToEmailContract>(hostContext.Configuration.GetSection(nameof(AuthenticateToEmailContract)));
                       services.Configure<ConnectToInboxClientContract>(hostContext.Configuration.GetSection(nameof(ConnectToInboxClientContract)));
+                      services.Configure<AdminsListContract>(hostContext.Configuration.GetSection(nameof(AdminsListContract)));
                       
                       services.AddSingleton<IEmailHandler, ImapEmailHandler>(provider =>
                       {
