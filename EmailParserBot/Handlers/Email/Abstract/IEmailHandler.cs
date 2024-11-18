@@ -1,7 +1,4 @@
-namespace EmailParserBot.Services.Implementation;
-
-using Contracts;
-using MailKit.Net.Imap;
+namespace EmailParserBot.Handlers.Email.Abstract;
 
 public interface IEmailHandler
 {

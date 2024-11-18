@@ -1,13 +1,13 @@
-namespace EmailParserBot.Services.Abstract;
+namespace EmailParserBot.Handlers.Email.Implementation;
 
-using Contracts;
-using Handlers.Email.Abstract;
-using Implementation;
+using EmailParserBot.Contracts;
+using EmailParserBot.Handlers.Email.Abstract;
 using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Security;
 using Microsoft.Extensions.Logging;
-using MimeKit;
+using Options;
+using Services.Abstract;
 
 public class ImapEmailHandler : IEmailHandler
 {
@@ -16,15 +16,15 @@ public class ImapEmailHandler : IEmailHandler
     private readonly IEmailService _emailService;
     private readonly ILogger<ImapEmailHandler> _logger;
 
-    private readonly AuthenticateToEmailContract _emailContract;
-    private readonly ConnectToInboxClientContract _inboxClientContract;
+    private readonly AuthenticateToEmailOptions _emailOptions;
+    private readonly ConnectToInboxClientOptions _inboxClientOptions;
 
-    public ImapEmailHandler(ILogger<ImapEmailHandler> logger, IEmailService emailService, AuthenticateToEmailContract emailContract, ConnectToInboxClientContract inboxClientContract)
+    public ImapEmailHandler(ILogger<ImapEmailHandler> logger, IEmailService emailService, AuthenticateToEmailOptions emailOptions, ConnectToInboxClientOptions inboxClientOptions)
     {
         _logger = logger;
         _emailService = emailService;
-        _emailContract = emailContract;
-        _inboxClientContract = inboxClientContract;
+        _emailOptions = emailOptions;
+        _inboxClientOptions = inboxClientOptions;
 
         _imapClient = Connect();
     }
@@ -51,8 +51,8 @@ public class ImapEmailHandler : IEmailHandler
         ImapClient imapClient = new ImapClient();
         try
         {
-            imapClient.Connect(_inboxClientContract.ImapServerUrl, _inboxClientContract.ImapServerPort, SecureSocketOptions.SslOnConnect);
-            imapClient.Authenticate(_emailContract.Email, _emailContract.Password);
+            imapClient.Connect(_inboxClientOptions.ImapServerUrl, _inboxClientOptions.ImapServerPort, SecureSocketOptions.SslOnConnect);
+            imapClient.Authenticate(_emailOptions.Email, _emailOptions.Password);
             
             _logger.LogInformation("Connected to inbox server");
             

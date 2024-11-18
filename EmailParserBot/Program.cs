@@ -6,6 +6,7 @@ using EmailParserBot.Handlers.Email.Abstract;
 using EmailParserBot.Handlers.Email.Implementation;
 using EmailParserBot.Helpers.Abstract;
 using EmailParserBot.Helpers.Implementation;
+using EmailParserBot.Options;
 using EmailParserBot.Services.Abstract;
 using EmailParserBot.Services.Implementation;
 using Microsoft.Extensions.Configuration;
@@ -20,51 +21,61 @@ using TelegramUpdater;
 using TelegramUpdater.Hosting;
 
 IHost app = Host.CreateDefaultBuilder(args)
-                 .ConfigureHostConfiguration(configuration =>
-                  {
-                      IPathHelper pathHelper = new PathHelper();
+                .ConfigureHostConfiguration(configuration =>
+                 {
+                     IPathHelper pathHelper = new PathHelper();
                       
-                      const string appsettingsFilePath = @"appsettings.json";
+                     const string appsettingsFilePath = @"appsettings.json";
 
-                      configuration.SetBasePath(pathHelper.GetProjectDirectoryPath())
-                                   .AddJsonFile(appsettingsFilePath);
-                  })
-                 .ConfigureServices((hostContext, services) =>
-                  {
-                      services.Configure<AuthenticateToEmailContract>(hostContext.Configuration.GetSection(nameof(AuthenticateToEmailContract)));
-                      services.Configure<ConnectToInboxClientContract>(hostContext.Configuration.GetSection(nameof(ConnectToInboxClientContract)));
-                      services.Configure<AdminsListContract>(hostContext.Configuration.GetSection(nameof(AdminsListContract)));
+                     configuration.SetBasePath(pathHelper.GetProjectDirectoryPath())
+                                  .AddJsonFile(appsettingsFilePath);
+                 })
+                .ConfigureServices((hostContext, services) =>
+                 {
+                     services.Configure<AuthenticateToEmailOptions>(hostContext.Configuration.GetSection(AuthenticateToEmailOptions.SectionName));
+                     services.Configure<ConnectToInboxClientOptions>(hostContext.Configuration.GetSection(ConnectToInboxClientOptions.SectionName));
+                     services.Configure<AdminsListOptions>(hostContext.Configuration.GetSection(AdminsListOptions.SectionName));
+                      
+                     services.Configure<YandexDiskOptions>(hostContext.Configuration.GetSection(YandexDiskOptions.SectionName)); 
                       
                       services.AddSingleton<IEmailHandler, ImapEmailHandler>(provider =>
                       {
-                          AuthenticateToEmailContract authenticateToEmailContract = provider.GetRequiredService<IOptions<AuthenticateToEmailContract>>().Value;
-                          ConnectToInboxClientContract connectToInboxClientContract = provider.GetRequiredService<IOptions<ConnectToInboxClientContract>>().Value;
+                          AuthenticateToEmailOptions authenticateToEmailOptions = provider.GetRequiredService<IOptions<AuthenticateToEmailOptions>>().Value;
+                          ConnectToInboxClientOptions connectToInboxClientOptions = provider.GetRequiredService<IOptions<ConnectToInboxClientOptions>>().Value;
                           
                           ILogger<ImapEmailHandler> logger = provider.GetRequiredService<ILogger<ImapEmailHandler>>();
                           IEmailService emailService = provider.GetRequiredService<IEmailService>();
 
-                          return new ImapEmailHandler(logger, emailService, authenticateToEmailContract, connectToInboxClientContract);
+                          return new ImapEmailHandler(logger, emailService, authenticateToEmailOptions, connectToInboxClientOptions);
                       });
 
                       services.AddScheduler();
+
+                     services.AddScoped<IEmailService, EmailService>();
+
+                     services.AddScoped<IPhotoService, YandexDiskPhotoService>();
                       
-                      services.AddScoped<IEmailService, EmailService>();
+                     services.AddTransient<IEmailBodyParser, EmailBodyParser>();
+                     services.AddTransient<IRedirectionPageParser, RedirectionPageParser>();
+                     
                       
-                      ConfigureTelegramUpdater(services, hostContext.Configuration);
+                     ConfigureTelegramUpdater(services, hostContext.Configuration);
                       
-                  }).Build();
+                 }).Build();
 
 app.Services.UseScheduler(scheduler =>
 {
     IEmailHandler emailHandler = app.Services.GetService<IEmailHandler>()
         ?? throw new NullReferenceException("Email handler not configured");
 
-    scheduler.Schedule(EmailHandlingAction).EverySeconds(10);
+    EmailHandlingAction();
+    scheduler.Schedule(EmailHandlingAction).EveryFiveMinutes();
     return;
-
+    //1262029461
     async void EmailHandlingAction() => 
         await emailHandler.HandleNewEmailsAsync();
 });
+
 
 await app.RunAsync();
 return;
@@ -78,7 +89,7 @@ void ConfigureTelegramUpdater(IServiceCollection services, IConfiguration config
 
     services.AddHttpClient("TelegramBotClient").AddTypedClient<ITelegramBotClient>(httpClient => client);
 
-    UpdaterOptions updaterOptions = new UpdaterOptions(10,
+    UpdaterOptions updaterOptions = new UpdaterOptions(5,
         allowedUpdates: [UpdateType.Message, UpdateType.CallbackQuery]);
 
     services.AddTelegramUpdater(client, updaterOptions, botBuilder =>

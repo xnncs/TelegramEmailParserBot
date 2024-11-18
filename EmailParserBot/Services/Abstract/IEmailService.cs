@@ -1,4 +1,4 @@
-namespace EmailParserBot.Handlers.Email.Abstract;
+namespace EmailParserBot.Services.Abstract;
 
 using MailKit;
 using MailKit.Net.Imap;
